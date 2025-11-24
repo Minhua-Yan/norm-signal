@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Latent Class Model: One Ethical Principle per Subject</title>
+
+<script src="latent_class_model_updated_files/header-attrs-2.29/header-attrs.js"></script>
+<script src="latent_class_model_updated_files/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="latent_class_model_updated_files/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<script src="latent_class_model_updated_files/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="latent_class_model_updated_files/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="latent_class_model_updated_files/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="latent_class_model_updated_files/navigation-1.1/tabsets.js"></script>
+<link href="latent_class_model_updated_files/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="latent_class_model_updated_files/highlightjs-9.12.0/highlight.js"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Latent Class Model: One Ethical Principle
+per Subject</h1>
+
+</div>
+
+
+<div id="load-emission-probabilities-and-prepare-data"
+class="section level2">
+<h2>Load Emission Probabilities and Prepare Data</h2>
+<pre class="r"><code>emission_raw &lt;- read_csv(&quot;emission_probs_softened_moderate.csv&quot;)</code></pre>
+<pre><code>## Rows: 39 Columns: 12
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr (12): Context, selfish, generous, tradition, rewardLBonly, rewardLDonly,...
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>principles &lt;- colnames(emission_raw)[-1]
+C &lt;- 3
+K &lt;- length(principles)
+J &lt;- nrow(emission_raw)
+
+emission_probs &lt;- array(0, dim = c(C, K, J))
+for (j in 1:J) {
+  for (k in 1:K) {
+    emission_probs[, k, j] &lt;- as.numeric(str_split(emission_raw[[k+1]][j], &quot;,&quot;)[[1]])
+  }
+}
+
+df &lt;- read_csv(&quot;ethics_deidentified.csv&quot;)</code></pre>
+<pre><code>## Rows: 118 Columns: 6
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr (6): id, Land, kinship, context, HV, response
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>df &lt;- df %&gt;%
+  mutate(
+    response = str_trim(response),
+    response = recode(response,
+                      &quot;SBJ&quot; = 1,
+                      &quot;HD&quot;  = 2,
+                      &quot;CFP&quot; = 3)
+  )
+
+df &lt;- df %&gt;% mutate(person_id = as.integer(factor(id)))
+context_labels &lt;- emission_raw$Context
+df &lt;- df %&gt;% mutate(context_id = as.integer(factor(context, levels = context_labels)))
+
+I &lt;- length(unique(df$person_id))
+
+alpha_vector &lt;- c(
+  selfish = 0.2,
+  generous = 0.2,
+  tradition = 0.2,
+  rewardLBonly = 0.2 / 7,
+  rewardLDonly = 0.2 / 7,
+  rewardRSonly = 0.2 / 7,
+  rewardLB_LD = 0.2 / 7,
+  rewardLB_RS = 0.2 / 7,
+  rewardLD_RS = 0.2 / 7,
+  rewardALL = 0.2 / 7,
+  random = 0.2
+)
+
+data_list &lt;- list(
+  N = nrow(df),
+  I = I,
+  K = K,
+  C = C,
+  J = J,
+  y = df$response,
+  context = df$context_id,
+  person = df$person_id,
+  emission_probs = emission_probs,
+  alpha = alpha_vector
+)</code></pre>
+</div>
+<div id="compile-and-fit-the-marginalized-model" class="section level2">
+<h2>Compile and Fit the Marginalized Model</h2>
+<pre class="r"><code>mod &lt;- cmdstan_model(&quot;single_z_per_subject_model_explicit.stan&quot;)
+fit &lt;- mod$sample(data = data_list, seed = 123, chains = 4, parallel_chains = 4, adapt_delta = 0.99)</code></pre>
+<pre><code>## Running MCMC with 4 parallel chains...
+## 
+## Chain 1 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 2 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 3 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 4 Iteration:    1 / 2000 [  0%]  (Warmup) 
+## Chain 2 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 3 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 4 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 1 Iteration:  100 / 2000 [  5%]  (Warmup) 
+## Chain 2 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 3 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 4 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 1 Iteration:  200 / 2000 [ 10%]  (Warmup) 
+## Chain 2 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 3 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 1 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 2 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 4 Iteration:  300 / 2000 [ 15%]  (Warmup) 
+## Chain 3 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 1 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 2 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 3 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 4 Iteration:  400 / 2000 [ 20%]  (Warmup) 
+## Chain 1 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 2 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 3 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 1 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 2 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 4 Iteration:  500 / 2000 [ 25%]  (Warmup) 
+## Chain 3 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 2 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 1 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 4 Iteration:  600 / 2000 [ 30%]  (Warmup) 
+## Chain 2 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 3 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 1 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 4 Iteration:  700 / 2000 [ 35%]  (Warmup) 
+## Chain 3 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 1 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 4 Iteration:  800 / 2000 [ 40%]  (Warmup) 
+## Chain 2 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 2 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 4 Iteration:  900 / 2000 [ 45%]  (Warmup) 
+## Chain 1 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 1 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 2 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 3 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 3 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 4 Iteration: 1000 / 2000 [ 50%]  (Warmup) 
+## Chain 4 Iteration: 1001 / 2000 [ 50%]  (Sampling) 
+## Chain 1 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 2 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 4 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 3 Iteration: 1100 / 2000 [ 55%]  (Sampling) 
+## Chain 1 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 2 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 4 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 1 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 2 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 4 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 3 Iteration: 1200 / 2000 [ 60%]  (Sampling) 
+## Chain 2 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 1 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 4 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 1 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 2 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 3 Iteration: 1300 / 2000 [ 65%]  (Sampling) 
+## Chain 4 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 1 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 2 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 4 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 1 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 2 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 3 Iteration: 1400 / 2000 [ 70%]  (Sampling) 
+## Chain 4 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 1 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 2 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 4 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 3 Iteration: 1500 / 2000 [ 75%]  (Sampling) 
+## Chain 1 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 2 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 2 finished in 4050.1 seconds.
+## Chain 4 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 1 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 1 finished in 4139.2 seconds.
+## Chain 4 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 4 finished in 4159.6 seconds.
+## Chain 3 Iteration: 1600 / 2000 [ 80%]  (Sampling) 
+## Chain 3 Iteration: 1700 / 2000 [ 85%]  (Sampling) 
+## Chain 3 Iteration: 1800 / 2000 [ 90%]  (Sampling) 
+## Chain 3 Iteration: 1900 / 2000 [ 95%]  (Sampling) 
+## Chain 3 Iteration: 2000 / 2000 [100%]  (Sampling) 
+## Chain 3 finished in 4847.1 seconds.
+## 
+## All 4 chains finished successfully.
+## Mean chain execution time: 4299.0 seconds.
+## Total execution time: 4847.6 seconds.</code></pre>
+<pre><code>## Warning: 177 of 4000 (4.0%) transitions hit the maximum treedepth limit of 10.
+## See https://mc-stan.org/misc/warnings for details.</code></pre>
+<pre class="r"><code>fit$summary(&quot;pi&quot;)</code></pre>
+<pre><code>## # A tibble: 11 × 10
+##    variable    mean   median      sd      mad       q5     q95  rhat ess_bulk
+##    &lt;chr&gt;      &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
+##  1 pi[1]    0.00810 7.53e- 4 0.0176  1.12e- 3 7.90e- 9 0.0408   1.00     525.
+##  2 pi[2]    0.265   2.61e- 1 0.101   1.05e- 1 1.08e- 1 0.439    1.00    2966.
+##  3 pi[3]    0.602   6.09e- 1 0.114   1.11e- 1 4.06e- 1 0.779    1.00    2833.
+##  4 pi[4]    0.0241  1.61e- 8 0.0505  2.39e- 8 5.96e-39 0.136    1.01     670.
+##  5 pi[5]    0.00121 1.20e-12 0.00661 1.79e-12 8.36e-47 0.00512  1.00     775.
+##  6 pi[6]    0.0184  2.56e-11 0.0605  3.80e-11 5.96e-44 0.142    1.00     653.
+##  7 pi[7]    0.0106  2.14e-10 0.0328  3.17e-10 7.25e-46 0.0874   1.01     945.
+##  8 pi[8]    0.00547 6.72e-11 0.0197  9.96e-11 1.46e-44 0.0375   1.00    1094.
+##  9 pi[9]    0.00198 1.47e-12 0.0111  2.18e-12 5.21e-51 0.00687  1.00     874.
+## 10 pi[10]   0.0491  2.42e- 5 0.0756  3.59e- 5 1.08e-42 0.213    1.00     561.
+## 11 pi[11]   0.0137  1.37e- 3 0.0290  2.03e- 3 6.62e- 9 0.0704   1.00    1857.
+## # ℹ 1 more variable: ess_tail &lt;dbl&gt;</code></pre>
+</div>
+<div id="plot-the-estimated-posterior-distribution"
+class="section level2">
+<h2>Plot the Estimated Posterior Distribution</h2>
+<pre class="r"><code>posterior_pi &lt;- as.data.frame(fit$draws(&quot;pi&quot;, format = &quot;draws_matrix&quot;))
+colnames(posterior_pi) &lt;- principles
+posterior_pi &lt;- posterior_pi %&gt;%
+  mutate(`reward contribution(s)` = rewardLBonly + rewardLDonly + rewardRSonly + rewardLB_LD + rewardLB_RS + rewardLD_RS + rewardALL) %&gt;%
+  select(selfish, generous, tradition, `reward contribution(s)`, random)
+
+means &lt;- colMeans(posterior_pi)
+ci_lower &lt;- apply(posterior_pi, 2, quantile, probs = 0.025)
+ci_upper &lt;- apply(posterior_pi, 2, quantile, probs = 0.975)
+
+desired_order &lt;- c(&quot;generosity&quot;, &quot;tradition\n compliance&quot;, &quot;reward\n contribution(s)&quot;, &quot;selfishness&quot;,&quot;random&quot;)
+
+
+summary_post &lt;- data.frame(
+  ethical_principle = names(means),
+  mean = means,
+  ci_lower = ci_lower,
+  ci_upper = ci_upper
+)
+
+summary_post &lt;- summary_post %&gt;%
+  mutate(ethical_principle = recode(ethical_principle,
+         &quot;tradition&quot; = &quot;tradition\n compliance&quot;,
+         &quot;reward contribution(s)&quot; = &quot;reward\n contribution(s)&quot;,
+         &quot;generous&quot; = &quot;generosity&quot;,
+         &quot;selfish&quot; = &quot;selfishness&quot;)
+         ) %&gt;%
+  mutate(ethical_principle = factor(ethical_principle, levels = desired_order))
+
+ggplot(summary_post, aes(x = ethical_principle, y = mean)) +
+  geom_point(color = &quot;steelblue&quot;, size = 3) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = &quot;gray50&quot;) +
+  labs(title = &quot;Estimated Prevalence of Ethical Principles&quot;, y = &quot;Proportion of respondents holding an ethical principle&quot;, x = NULL) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1, size=14), plot.title = element_text(hjust = 0.5))</code></pre>
+<p><img src="latent_class_model_updated_files/figure-html/posterior-plot-1.png" width="672" /></p>
+</div>
+<div id="plot-the-prior-distribution-for-5-ethical-principles"
+class="section level2">
+<h2>Plot the Prior Distribution for 5 ethical principles</h2>
+<pre class="r"><code>prior_draws &lt;- rdirichlet(5000, alpha_vector)
+colnames(prior_draws) &lt;- names(alpha_vector)
+prior_df &lt;- as.data.frame(prior_draws)
+
+prior_df &lt;- prior_df %&gt;%
+  mutate(`reward contribution(s)` = rewardLBonly + rewardLDonly + rewardRSonly + rewardLB_LD + rewardLB_RS + rewardLD_RS + rewardALL) %&gt;%
+  select(selfish, generous, tradition, `reward contribution(s)`, random)
+
+prior_means &lt;- colMeans(prior_df)
+prior_ci_lower &lt;- apply(prior_df, 2, quantile, probs = 0.025)
+prior_ci_upper &lt;- apply(prior_df, 2, quantile, probs = 0.975)
+
+summary_prior &lt;- data.frame(
+  ethical_principle = names(prior_means),
+  mean = prior_means,
+  ci_lower = prior_ci_lower,
+  ci_upper = prior_ci_upper
+)
+
+desired_order &lt;- c(&quot;generosity&quot;, &quot;tradition\n compliance&quot;, &quot;reward\n contribution(s)&quot;, &quot;selfishness&quot;,&quot;random&quot;)
+
+summary_prior &lt;- summary_prior %&gt;%
+ mutate(ethical_principle = recode(ethical_principle,
+         &quot;tradition&quot; = &quot;tradition\n compliance&quot;,
+         &quot;reward contribution(s)&quot; = &quot;reward\n contribution(s)&quot;,
+         &quot;generous&quot; = &quot;generosity&quot;,
+         &quot;selfish&quot; = &quot;selfishness&quot;)
+         ) %&gt;%
+  mutate(ethical_principle = factor(ethical_principle, levels = desired_order))
+
+ggplot(summary_prior, aes(x = ethical_principle, y = mean)) +
+  geom_point(color = &quot;darkgreen&quot;, size = 3) +
+  geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, color = &quot;gray50&quot;) +
+  labs(title = &quot;Prior Distribution over Ethical Principles&quot;, y = &quot;Prior probability&quot;, x = NULL) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 20, hjust = 1), plot.title = element_text(hjust = 0.5))</code></pre>
+<p><img src="latent_class_model_updated_files/figure-html/prior-plot-1.png" width="672" /></p>
+</div>
+<div id="plot-the-prior-distribution-for-base-level-ethical-principles"
+class="section level2">
+<h2>Plot the Prior Distribution for base-level ethical principles</h2>
+<p><img src="latent_class_model_updated_files/figure-html/unnamed-chunk-1-1.png" width="1440" style="display: block; margin: auto;" /></p>
+</div>
+
+
+
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
